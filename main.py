@@ -1,4 +1,5 @@
-from parser import *
+from myparser import *
+from simple_locking import * 
 from transaction import transaction
 import sys
 import os
@@ -10,7 +11,7 @@ if __name__ == "__main__":
         exit()
     cwd = os.getcwd()
     file_name = cwd + '\\test\\' + sys.argv[1]
-    print(file_name)
+    # print(file_name)
     if (not os.path.isfile(file_name)):
         print("File does not exist")
         exit()
@@ -19,3 +20,8 @@ if __name__ == "__main__":
         print("<method> is one of: \n\tsimple-locking\n\tsimple-optimistic-cc\n\tmultiversion-ts-ord-cc")
         exit()
     num_trans, objs, transactions = parse_input(file_name)
+
+    if method == "simple-locking":
+        simple_locking = simple_locking(num_trans, objs, transactions)
+        simple_locking.start()
+        simple_locking.print_results()
