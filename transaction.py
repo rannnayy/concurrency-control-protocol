@@ -9,7 +9,10 @@ class transaction:
             self.transaction_obj = ""
 
     def __str__(self):
-        return f"{self.transaction_type}{str(self.transaction_ts)}({self.transaction_obj})"
+        if self.transaction_type == "R" or self.transaction_type == "W":
+            return f"{self.transaction_type}{self.transaction_ts}({self.transaction_obj})"
+        else:
+            return f"{self.transaction_type}{self.transaction_ts}"
 
     def get_type(self):
         return self.transaction_type

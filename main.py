@@ -1,4 +1,4 @@
-from parser import *
+from myparser import *
 from simple_locking import * 
 from OCC import *
 from transaction import transaction
