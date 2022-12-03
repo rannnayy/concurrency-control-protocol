@@ -26,6 +26,7 @@ class simple_locking():
             self.each_transaction[transaction.get_ts()].append(transaction)
         else:
             self.each_transaction[transaction.get_ts()] = [transaction]
+            self.waiting_table[(transaction.get_ts())] = [None, []] 
     
     def check_have_lock(self, transaction):
         if self.lock_table[transaction.get_obj()] == transaction.get_ts():
@@ -65,7 +66,7 @@ class simple_locking():
                     self.abort(transaction)
 
     def wait(self, transaction):
-        if (transaction.get_ts() in self.waiting_table):
+        if (len(self.waiting_table[(transaction.get_ts())][1])!= 0):
             if (not self.waiting_table[transaction.get_ts()][0]):
                 self.waiting_table[transaction.get_ts()][0] = transaction.get_obj()
             if (transaction not in self.waiting_table[transaction.get_ts()][1]):
