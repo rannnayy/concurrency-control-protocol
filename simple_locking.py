@@ -1,4 +1,5 @@
 from transaction import transaction
+import re
 
 class simple_locking():
     def __init__(self, num_trans, objs, transactions):
@@ -103,16 +104,46 @@ class simple_locking():
         else:
             self.wait(transaction)
 
+
+    def abort(self, ts):
+        self.results.append(f"A{ts}")
+        for item in self.each_transaction[ts]:
+            self.append_transaction(item)
+
+    def DeadlockHandler(self):
+        stack = []
+        for ts in self.waiting_table:
+            stack.insert(0,ts)
+        while len(stack) > 0:
+            ts = stack.pop(0)
+            if self.waiting_table[ts][0]:
+                self.abort(ts)
+        self.waiting_table = {}
+        self.lock_table = {}
+        self.init_lock_table()
+        self.each_transaction = {}
+
     def start(self):
         for t in self.transactions:
             self.append_transaction(t)
-        while len(self.queue) > 0:
-            t = self.queue.pop(0)
-            self.append_each_transaction(t)
-            if t.get_type() == "R" or t.get_type() == "W":
-                self.execute(t)
-            elif t.get_type() == "C":
-                self.commit(t)
+        finished = False
+        while (not finished):
+            while len(self.queue) > 0:
+                t = self.queue.pop(0)
+                self.append_each_transaction(t)
+                if t.get_type() == "R" or t.get_type() == "W":
+                    self.execute(t)
+                elif t.get_type() == "C":
+                    self.commit(t)
+            if len(self.results) == 0:
+                print("No transactions")
+                finished = True
+            # finished = True
+            else:
+                self.DeadlockHandler()
+                if len(self.queue) == 0:
+                    finished = True
+
 
 
     def print_results(self):

@@ -1,3 +1,3 @@
 3
-X Y
-R1(X); W2(X); W2(Y); W3(Y); W1(X); C1; C2; C3
+X Y Z
+R1(X); R2(Y); R2(X); R1(Y); C1; C2
