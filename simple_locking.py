@@ -161,7 +161,7 @@ class simple_locking():
 
 
     def start(self):
-        self.is_deadlock_prevention = input("Activate deadlock prevention? (y/n): ")
+        self.is_deadlock_prevention = input("Activate deadlock prevention (wound-wait)? (y/n): ")
         for t in self.transactions:
             self.append_transaction(t)
         while len(self.queue) > 0:
