@@ -90,7 +90,7 @@ class simple_locking():
         if (transaction not in self.waiting_queue):
             self.waiting_queue.append(transaction) 
         if transaction.get_type() != "C" and self.waiting_table[transaction.get_ts()] == transaction.get_obj(): 
-            print(f"Transaction  {transaction.get_ts()}  is waiting for lock on object  {transaction.get_obj()}")      
+            print(f"Transaction  {transaction.get_ts()}  is waiting for lock on object  {self.waiting_table[transaction.get_ts()]}")      
         
 
     def check_if_waiting(self, transaction):
@@ -135,16 +135,18 @@ class simple_locking():
                 lock_released.append(lock)
                 print(f"Lock released on object {lock} by transaction {ts}")
                 self.results.append(f"UL{ts}({lock})")
-                
-        for ts in self.waiting_table:
-            if self.waiting_table[ts] in lock_released:
-                self.waiting_table[ts] = None
-                waiting_queue = self.waiting_queue.copy()
-                for t in waiting_queue:
-                    if t.get_type() == "R" or t.get_type() == "W":
-                        self.execute(t)
-                    elif t.get_type() == "C":
-                        self.commit(t)
+
+        for trs in self.waiting_table:
+            if self.waiting_table[trs] in lock_released:
+                self.waiting_table[trs] = None
+    
+        waiting_queue = self.waiting_queue.copy()
+        for t in waiting_queue:
+            if (t.get_ts() != ts):
+                if t.get_type() == "R" or t.get_type() == "W":
+                    self.execute(t)
+                elif t.get_type() == "C":
+                    self.commit(t)
 
 
     def commit(self, transaction):
@@ -160,12 +162,13 @@ class simple_locking():
     def abort(self, transaction):
         print(f"Abort transaction {transaction.get_ts()}")
         self.results.append(f"A{transaction.get_ts()}")
-        self.unlock(transaction.get_ts())
         max = 0
         for key in self.timestamp:
             if self.timestamp[key] > max:
                 max = key
         self.timestamp[transaction.get_ts()] = max + 1
+
+        self.unlock(transaction.get_ts())
         for item in self.each_transaction[transaction.get_ts()]:
             if item == transaction:
                 break
