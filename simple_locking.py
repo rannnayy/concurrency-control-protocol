@@ -8,8 +8,10 @@ class simple_locking():
         self.transactions = transactions
         self.lock_table = {}
         self.waiting_table = {}
-        self.queue = []
         self.each_transaction = {}
+        self.timestamp = {}
+        self.queue = []
+        self.waiting_queue = []
         self.results = []
         self.init_lock_table()
 
@@ -26,7 +28,12 @@ class simple_locking():
             self.each_transaction[transaction.get_ts()].append(transaction)
         else:
             self.each_transaction[transaction.get_ts()] = [transaction]
-            self.waiting_table[(transaction.get_ts())] = [None, []] 
+            self.waiting_table[(transaction.get_ts())] = None 
+            max = 0
+            for key in self.timestamp:
+                if self.timestamp[key] > max:
+                    max = key
+            self.timestamp[(transaction.get_ts())] = max + 1
     
     def check_have_lock(self, transaction):
         if self.lock_table[transaction.get_obj()] == transaction.get_ts():
@@ -50,42 +57,50 @@ class simple_locking():
     
 
     def check_deadlock(self,transaction):
-        def rec_deadlock(list_ts, owner_lock, check_ts):
-            if owner_lock in self.waiting_table and self.waiting_table[owner_lock][0]:
-                if self.lock_table[self.waiting_table[owner_lock][0]] == check_ts:
+        def rec_deadlock(owner_lock, check_ts):
+            if owner_lock in self.waiting_table and self.waiting_table[owner_lock]:
+                if self.lock_table[self.waiting_table[owner_lock]] == check_ts:
                     return True
                 else:
-                    return rec_deadlock(list_ts, self.lock_table[self.waiting_table[owner_lock][0]], check_ts)
+                    return rec_deadlock(self.lock_table[self.waiting_table[owner_lock]], check_ts)
             else: 
                 return False
-        ts_list=[transaction.get_ts()]
-        if self.waiting_table[transaction.get_ts()][0]:
-            lock_owner = self.lock_table[self.waiting_table[transaction.get_ts()][0]]
-            if lock_owner in self.waiting_table and self.waiting_table[lock_owner][0]:
-                if rec_deadlock(ts_list, lock_owner, transaction.get_ts()):
-                    self.abort(transaction)
+
+        if self.waiting_table[transaction.get_ts()]:
+            lock_owner = self.lock_table[self.waiting_table[transaction.get_ts()]]
+            if lock_owner in self.waiting_table and self.waiting_table[lock_owner]:
+                if rec_deadlock(lock_owner, transaction.get_ts()):
+                    self.results.append("Deadlock detected!")
+
+    def wound_wait(self,transaction):
+        if self.waiting_table[transaction.get_ts()]:
+            lock_owner = self.lock_table[self.waiting_table[transaction.get_ts()]]
+            if self.timestamp[lock_owner] < self.timestamp[transaction.get_ts()]:
+                self.wait(transaction)
+            else:
+                for item in self.queue:
+                    if item.get_ts() == lock_owner:
+                        self.abort(item)
+                        break
 
     def wait(self, transaction):
-        if (len(self.waiting_table[(transaction.get_ts())][1])!= 0):
-            if (not self.waiting_table[transaction.get_ts()][0]):
-                self.waiting_table[transaction.get_ts()][0] = transaction.get_obj()
-            if (transaction not in self.waiting_table[transaction.get_ts()][1]):
-                self.waiting_table[transaction.get_ts()][1].append(transaction)
-        else:
-            self.waiting_table[(transaction.get_ts())] = [transaction.get_obj(), [transaction]]        
+        if (not self.waiting_table[transaction.get_ts()]):
+            self.waiting_table[transaction.get_ts()] = transaction.get_obj()
+        if (transaction not in self.waiting_queue):
+            self.waiting_queue.append(transaction)      
         
 
     def check_if_waiting(self, transaction):
         if transaction.get_ts() in self.waiting_table:
-            if not self.waiting_table[transaction.get_ts()][0]:
+            if not self.waiting_table[transaction.get_ts()]:
                 return False
             return True
         return False
 
     def remove_from_wt(self, transaction):
         if transaction.get_ts() in self.waiting_table:
-            if transaction in self.waiting_table[transaction.get_ts()][1]:
-                self.waiting_table[transaction.get_ts()][1].remove(transaction)
+            if transaction in self.waiting_queue:
+                self.waiting_queue.remove(transaction)
 
     def execute(self, transaction):
         if not self.check_if_waiting(transaction):
@@ -100,23 +115,26 @@ class simple_locking():
                     return
                 else:
                     self.wait(transaction)
-                    self.check_deadlock(transaction)
+                    if (self.is_deadlock_prevention.upper() == "Y"):
+                        self.wound_wait(transaction)
+                    else:
+                        self.check_deadlock(transaction)
                     return
         self.wait(transaction)
 
-    def unlock(self, transaction):
+    def unlock(self, ts):
         lock_released = []
         for lock in self.lock_table:
-            if self.lock_table[lock] == transaction.get_ts():
+            if self.lock_table[lock] == ts:
                 self.lock_table[lock] = None
                 lock_released.append(lock)
-                self.results.append(f"UL{transaction.get_ts()}({lock})")
+                self.results.append(f"UL{ts}({lock})")
                 
         for ts in self.waiting_table:
-            if self.waiting_table[ts][0] in lock_released:
-                self.waiting_table[ts][0] = None
-                waiting_table = self.waiting_table[ts][1].copy()
-                for t in waiting_table:
+            if self.waiting_table[ts] in lock_released:
+                self.waiting_table[ts] = None
+                waiting_queue = self.waiting_queue.copy()
+                for t in waiting_queue:
                     if t.get_type() == "R" or t.get_type() == "W":
                         self.execute(t)
                     elif t.get_type() == "C":
@@ -126,22 +144,28 @@ class simple_locking():
     def commit(self, transaction):
         if not self.check_if_waiting(transaction):
             self.results.append(transaction)
-
-            self.unlock(transaction)
+            self.unlock(transaction.get_ts())
+            self.remove_from_wt(transaction)
         else:
             self.wait(transaction)
 
 
     def abort(self, transaction):
         self.results.append(f"A{transaction.get_ts()}")
-        self.unlock(transaction)
+        self.unlock(transaction.get_ts())
+        max = 0
+        for key in self.timestamp:
+            if self.timestamp[key] > max:
+                max = key
+        self.timestamp[transaction.get_ts()] = max + 1
         for item in self.each_transaction[transaction.get_ts()]:
             if item == transaction:
                 break
-            self.queue.insert(0,item)
+            self.queue.insert(0, item)
 
 
     def start(self):
+        self.is_deadlock_prevention = input("Activate deadlock prevention (wound-wait)? (y/n): ")
         for t in self.transactions:
             self.append_transaction(t)
         while len(self.queue) > 0:
@@ -155,7 +179,13 @@ class simple_locking():
             print("No transactions")
 
 
-
     def print_results(self):
+        print("Schedule result: ")
         for r in self.results:
             print(r, end="; ")
+        print()
+        for t in self.waiting_queue:
+                if t.get_type() == "C":
+                    print("Transaction " + str(t.get_ts()) + " caught in deadlock")
+        
+

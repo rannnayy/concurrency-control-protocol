@@ -1,6 +1,6 @@
 from transactionparser import *
 from simple_locking import * 
-from occ import *
+from OCC import *
 from mvcc import *
 from transaction import transaction
 import sys
