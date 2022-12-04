@@ -9,7 +9,7 @@ import os
 if __name__ == "__main__":
     if (len(sys.argv) != 3):
         print("Usage: python3 main.py <file_name> <method>")
-        print("<method> is one of: \n\tsimple-locking\n\tsimple-optimistic-cc\n\tmultiversion-ts-ord-cc")
+        print("<method> is one of: \n\tsimple-locking\n\toptimistic-cc\n\tmultiversion-ts-ord-cc")
         exit()
     cwd = os.getcwd()
     file_name = cwd + '\\test\\' + sys.argv[1]
@@ -27,8 +27,8 @@ if __name__ == "__main__":
         simple_locking = simple_locking(num_trans, objs, transactions)
         simple_locking.start()
         simple_locking.print_results()
-    elif method == "simple-optimistic-cc":
-        print("Simple Optimistic Concurrency Control")
+    elif method == "optimistic-cc":
+        print("Serial Optimistic Concurrency Control")
         validation_based = occ()
         validation_based.start(num_trans, objs, transactions)
     elif method == "multiversion-ts-ord-cc":
