@@ -66,6 +66,7 @@ class mvcc():
                 for i in range (len(self.Q)-1, -1, -1):
                     if self.Q[i].var == var:
                         if self.Q[i].WTS <= self.T[no-1].ts:
+                            # print("TS ku", self.T[no-1].ts, "WTS", self.Q[i].WTS)
                             if self.Q[i].RTS <= self.T[no-1].ts:
                                 self.Q[i].readOp(self.T[no-1].ts)
                                 self.T[no-1].addT(self.transactions[count])
@@ -80,27 +81,29 @@ class mvcc():
                 # Search for the latest version of var
                 for i in range (len(self.Q)-1, -1, -1):
                     if self.Q[i].var == var:
-                        if self.T[no-1].ts < self.Q[i].RTS:
-                            # Rollback
-                            # Rollback all transactions of T[no-1]
-                            prev_ts = self.T[no-1].ts
-                            self.current_ts += 1
-                            self.T[no-1].setTS(self.current_ts)
-                            self.transactions.insert(count + 1, transaction("A" + str(no)))
-                            self.T[no-1].addT(self.transactions[count])
-                            print(self.transactions[count], "Rollback.")
-                            break
-                        elif self.T[no-1].ts == self.Q[i].WTS:
-                            self.T[no-1].addT(self.transactions[count])
-                            print(self.transactions[count], "Rewrites", self.Q[i])
-                            break
-                        else:
-                            self.Q.append(Q(var, self.T[no-1].ts))
-                            self.Q[-1].writeOp(self.T[no-1].ts)
-                            self.Q[-1].readOp(self.T[no-1].ts)
-                            self.T[no-1].addT(self.transactions[count])
-                            print(self.transactions[count], "New version.", self.Q[-1])
-                            break
+                        if self.Q[i].WTS <= self.T[no-1].ts:
+                            if self.T[no-1].ts < self.Q[i].RTS:
+                                # Rollback
+                                # Rollback all transactions of T[no-1]
+                                prev_ts = self.T[no-1].ts
+                                self.current_ts += 1
+                                self.T[no-1].setTS(self.current_ts)
+                                self.transactions.insert(count + 1, transaction("A" + str(no)))
+                                self.T[no-1].addT(self.transactions[count])
+                                print(self.transactions[count], "Rollback.")
+                                break
+                            elif self.T[no-1].ts == self.Q[i].WTS:
+                                self.T[no-1].addT(self.transactions[count])
+                                print(self.transactions[count], "Rewrites", self.Q[i])
+                                break
+                            else:
+                                idx = self.get_index(self.T[no-1].ts, var)
+                                self.Q.insert(idx, Q(var, self.T[no-1].ts))
+                                self.Q[idx].writeOp(self.T[no-1].ts)
+                                self.Q[idx].readOp(self.T[no-1].ts)
+                                self.T[no-1].addT(self.transactions[count])
+                                print(self.transactions[count], "New version.", self.Q[idx])
+                                break
             elif type == "A":
                 temp_start_T = self.search_c(self.T[no-1].trans)
                 temp_len_T = len(self.T[no-1].trans)
@@ -127,8 +130,24 @@ class mvcc():
             elif type == "C":
                 print(self.transactions[count])
                 self.T[no-1].addT(self.transactions[count])
+            # print("QQQQQQQQQQQQQ")
+            # for qs in self.Q:
+            #     print(qs)
+            # print()
             count += 1
     
+    def get_index(self, timestamp, var):
+        # Get the index from Q for var variable with ts and ts <= ts
+        idx = 0
+        first_idx_larger_than_ts = -1
+        while idx < len(self.Q):
+            if self.Q[idx].var == var:
+                if self.Q[idx].WTS >= timestamp:
+                    first_idx_larger_than_ts = idx
+                    break 
+            idx += 1
+        return first_idx_larger_than_ts if first_idx_larger_than_ts != -1 else len(self.Q)
+
     def search_c(self, trans):
         idx = len(trans) - 1
         # print("awal", idx)
