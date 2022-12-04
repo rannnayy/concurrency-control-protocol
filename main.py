@@ -1,6 +1,7 @@
-from myparser import *
+from transactionparser import *
 from simple_locking import * 
-from OCC import *
+from occ import *
+from mvcc import *
 from transaction import transaction
 import sys
 import os
@@ -28,7 +29,9 @@ if __name__ == "__main__":
         simple_locking.print_results()
     elif method == "simple-optimistic-cc":
         print("Simple Optimistic Concurrency Control")
-        occ = OCC(num_trans, objs, transactions)
-        occ.start()
+        validation_based = occ()
+        validation_based.start(num_trans, objs, transactions)
     elif method == "multiversion-ts-ord-cc":
         print("Multiversion Timestamp Ordered Concurrency Control")
+        mvcc = mvcc()
+        mvcc.start(num_trans, objs, transactions)
