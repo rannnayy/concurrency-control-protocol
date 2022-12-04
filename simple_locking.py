@@ -29,7 +29,11 @@ class simple_locking():
         else:
             self.each_transaction[transaction.get_ts()] = [transaction]
             self.waiting_table[(transaction.get_ts())] = None 
-            self.timestamp[(transaction.get_ts())] = transaction.get_ts()
+            max = 0
+            for key in self.timestamp:
+                if self.timestamp[key] > max:
+                    max = key
+            self.timestamp[(transaction.get_ts())] = max + 1
     
     def check_have_lock(self, transaction):
         if self.lock_table[transaction.get_obj()] == transaction.get_ts():
@@ -151,13 +155,13 @@ class simple_locking():
         self.unlock(transaction.get_ts())
         max = 0
         for key in self.timestamp:
-            if key > max:
+            if self.timestamp[key] > max:
                 max = key
         self.timestamp[transaction.get_ts()] = max + 1
         for item in self.each_transaction[transaction.get_ts()]:
             if item == transaction:
                 break
-            self.queue.append(item)
+            self.queue.insert(0, item)
 
 
     def start(self):
