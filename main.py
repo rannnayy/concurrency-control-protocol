@@ -18,8 +18,8 @@ if __name__ == "__main__":
         print("File does not exist")
         exit()
     method = sys.argv[2]
-    if method not in ["simple-locking", "simple-optimistic-cc", "multiversion-ts-ord-cc"]:
-        print("<method> is one of: \n\tsimple-locking\n\tsimple-optimistic-cc\n\tmultiversion-ts-ord-cc")
+    if method not in ["simple-locking", "optimistic-cc", "multiversion-ts-ord-cc"]:
+        print("<method> is one of: \n\tsimple-locking\n\toptimistic-cc\n\tmultiversion-ts-ord-cc")
         exit()
     num_trans, objs, transactions = parse_input(file_name)
 

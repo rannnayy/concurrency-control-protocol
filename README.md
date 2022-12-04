@@ -20,7 +20,7 @@ File has to be put inside `/test` folder and is a text file.
 Method is one of:
 
 - `simple-locking` for Simple Locking (Exclusive lock only)
-- `simple-optimistic-cc` for Serial Optimistic Concurrency Control (Validation Based Protocol)
+- `optimistic-cc` for Serial Optimistic Concurrency Control (Validation Based Protocol)
 - `multiversion-ts-ord-cc` fir Multiversion Timestamp Ordering Concurrency Control
 
 ## Usage
