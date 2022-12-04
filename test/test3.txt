@@ -1,0 +1,3 @@
+3
+A B C D
+R1(A); R2(A); R3(B); R1(B); W3(C); W2(C); R1(C); C1; R2(D); W3(B); C3; W2(D); C2
