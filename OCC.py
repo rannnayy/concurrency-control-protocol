@@ -1,105 +1,159 @@
 from transaction import transaction
 
-class TransactionQ():
+class T():
+    def __init__(self, no):
+        self.no = no
+        self.transactions = []
+        self.start = -1
+        self.validation = -1
+        self.ts = -1
+    
+    def __str__(self) -> str:
+        return f"T{self.no}: startTS => {self.start}, validationTS => {self.validation}, ts => {self.ts}, transactions => {self.transactions}"
+    
+    def addTransaction(self, transaction):
+        self.transactions.append(transaction)
+    
+    def setStart(self, start):
+        self.start = start
+
+    def setValidation(self, validation):
+        self.validation = validation
+
+    def setTS(self, ts):
+        self.ts = ts
+
+    def doAbort(self):
+        # Abort transactions until found Commit
+        while (self.transactions[-1].get_type() != "C" and len(self.transactions) > 0):
+            self.transactions.pop()
+
+    
+class occ():
     def __init__(self):
-        self.WTS = []
-        self.RTS = []
-        self.waiting_queue = []
-        self.commit = False
-        self.start_time = 0
-        self.finish_time = 0
-    
-    def finishes(self, ts):
-        self.finish_time = ts
-        self.commit = True
-    
-    def isCommitted(self):
-        return self.commit, self.start_time, self.finish_time
-    
-    def isFirst(self):
-        return len(self.WTS) == 0 and len(self.RTS) == 0
-    
-    def setCommit(self, commit):
-        self.commit = commit
-    
-    def doRead(self, ts, obj):
-        if (self.isFirst):
-            self.start_time = ts
-        self.RTS.append([ts, obj])
-    
-    def doWrite(self, ts, obj):
-        if (self.isFirst):
-            self.start_time = ts
-        self.WTS.append([ts, obj])
-    
-    def doAbort(self, ts):
-        # Abort transactions with timestamp < ts
-        for r in self.RTS:
-            if r[0] < ts:
-                self.waiting_queue.append(["R", r.ts, r.obj])
-        for w in self.WTS:
-            if w[0] < ts:
-                self.waiting_queue.append(["W", w.ts, w.obj])
-        self.waiting_queue.sort(key = lambda x: x[1])
-        print("Aborted.")
-        print("Queue: ", self.waiting_queue)
-        return self.waiting_queue
-
-class OCC():
-    def __init__(self, num_trans, objs, transactions):
-        self.num_trans = num_trans
-        self.objs = objs
-        self.transactions = transactions
-        self.ts = 0
         self.T = []
-        for i in range(self.num_trans):
-            self.T.append(TransactionQ())
+        self.all_transactions = []
+        self.num_T = 0
+        self.vars = []
+        self.latest_ts = 0
     
-    def start(self):
-        for trans in self.transactions:
-            # Just do read or write in local variable in read phase
-            self.ts += 1
-            if trans.transaction_type == "R":
-                self.T[trans.transactions_ts].doRead(self.ts, trans.transaction_obj)
-            elif trans.transaction_type == "W":
-                self.T[trans.transaction_ts].doWrite(self.ts, trans.transaction_obj)
-            elif trans.transaction_type == "C":
-                # commit time
-                # do validation against smaller transaction ts
-                # commit only if all read and write are valid
-                # if not valid, abort
-                self.T[trans.transaction_ts].setCommit = self.validation_phase(trans.transaction_ts)
-                if (self.T[trans.transaction_ts].commit == True):
-                    self.T[trans.transaction_ts].finishes(self.ts)
-                else:
-                    self.wait_q = self.T[trans.transaction_ts].doAbort(self.ts)
-                    for q in self.wait_q:
-                        self.transactions.append(transaction(q[0]+str(trans.transaction_ts)+"("+q[2]+")"))
-            elif trans.transaction_type == "A":
-                self.T[trans.transaction_ts].doAbort(self.ts)
+    def start(self, num_T, vars, all_transactions):
+        self.num_T = num_T
+        self.vars = vars
+        self.all_transactions = all_transactions
+        for i in range(self.num_T):
+            self.T.append(T(i+1))
+        print("Read and Execution Phase")
+        self.read()
+        print(self.T)
+        # Validation includes write operation
+        print("Validation and Write Phase")
+        self.validate()
+    
+    def read(self):
+        count = 1
+        for t in self.all_transactions:
+            type = t.get_type()
+            no = t.get_ts()
 
-    def validation_phase(self, trans_ts):
-        # Check if others are committed
-        for i in self.num_trans:
-            if i != trans_ts and self.T[i].isCommitted == True:
-                # check current transaction in respect to this committed transaction
-                WSTi = self.T[i].WTS
-                RSTk = self.T[trans_ts].RTS
-                overlap = self.checkOverlap(WSTi, RSTk)
-                if self.T[i].finish_time < self.T[trans_ts].start_time or not overlap:
-                    # validation success
-                    return True
-                else:
-                    return False
+            self.T[no-1].addTransaction(t)
+            if type == "C":
+                # The last transaction is commit
+                self.T[no-1].setValidation(count)
+            elif type in ["R", "W"]:
+                # The first transaction, set start time
+                if self.T[no-1].start == -1:
+                    self.T[no-1].setStart(count)
+            
+            count += 1
+
+        # Check if validation unset
+        # ex. if no C written
+        for i in range(self.num_T):
+            if self.T[i].validation == -1:
+                self.T[i].setValidation(count)
+                count += 1
+        
+        self.latest_ts = count
     
-    def checkOverlap(self, TS1, TS2):
-        # Compare each value in TS1 to all TS2
-        for i in TS1:
-            for j in TS2:
-                if i[1] == j[1]:
-                    return True
+    def first_commit(self):
+        min = 999999
+        index = -1
+        for i in range(self.num_T):
+            if self.T[i].ts == -1 and self.T[i].validation < min:
+                min = self.T[i].validation
+                index = i
+        return index, min
+
+    def commit_earlier(self):
+        earlier = []
+        for i in range(self.num_T):
+            # Search for T that has committed
+            # Committed T has ts != -1
+            if self.T[i].ts != -1:
+                earlier.append(i)
+        # print("EAAAAAAARRRRRRRRRRLLLLLLLLLIEEEEEEE")
+        # print(earlier)
+        return earlier
+    
+    def remove_abort(self, trans):
+        # Check from the last transaction to the first if there's abort transaction
+        # If there's abort transaction, remove it and all until found C
+        found_A = False
+        temp_trans = []
+        for i in range (len(trans)-1, -1, -1):
+            if trans[i].get_type() == "A":
+                found_A = True
+                continue
+            if found_A and trans[i].get_type() != "C":
+                continue
+            if found_A and trans[i].get_type() == "C":
+                found_A = False
+            if not found_A:
+                temp_trans.insert(0, trans[i])
+        return temp_trans
+    
+    def print_result(self, trans):
+        for t in trans:
+            print(t)
+    
+    def validate(self):
+        cnt = 0
+        while cnt < self.num_T:
+            # Find the T that commit first
+            index, min_ts = self.first_commit()
+            # Towards that T, perform validation to every T that has committed earlier
+            valid = self.validation_test(index, min_ts)
+            if (valid):
+                self.T[index].setTS(min_ts)
+                cnt += 1
+                print(f"T{self.T[index].no} validated and written at {min_ts}")
+                temp_trans = self.remove_abort(self.T[index].transactions)
+                self.print_result(temp_trans)
+            else:
+                self.T[index].setValidate(self.latest_ts + 1)
+    
+    def validation_test(self, i, ts_i):
+        # i should be in 0..num_T-1
+        is_first = True
+        for j in range(self.num_T):
+            # Check for transaction other than i
+            if j != i:
+                # Check for past committed transaction
+                if self.T[j].validation < ts_i:
+                    is_first = False
+                    if (self.T[j].validation < self.T[i].start) or (self.T[j].validation < self.T[i].validation and self.checkDisjoint(self.T[i].transactions, self.T[j].transactions)):
+                        return True
+        if is_first:
+            return True
         return False
-
-    # def print_results(self):
-    #     for r in self.results:
-    #         print(r, end="; ")
+    
+    def checkDisjoint(self, RTSi, WTSj):
+        # Compare each value in TS1 to all TS2
+        for i in RTSi:
+            if (i.get_type() == "R"):
+                for j in WTSj:
+                    if (j.get_type() == "W"):
+                        if i.get_obj() == j.get_obj():
+                            return False
+        return True
