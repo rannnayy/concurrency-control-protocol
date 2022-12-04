@@ -49,6 +49,7 @@ class simple_locking():
     def try_get_lock(self, transaction):
         if not self.lock_table[transaction.get_obj()]:
             self.lock_table[transaction.get_obj()] = transaction.get_ts()
+            print(f"Granting lock for transaction {transaction.get_ts()} on object {transaction.get_obj()}")            
             self.results.append(f"XL{transaction.get_ts()}({transaction.get_obj()})")
             return True
         else:       
@@ -87,7 +88,9 @@ class simple_locking():
         if (not self.waiting_table[transaction.get_ts()]):
             self.waiting_table[transaction.get_ts()] = transaction.get_obj()
         if (transaction not in self.waiting_queue):
-            self.waiting_queue.append(transaction)      
+            self.waiting_queue.append(transaction) 
+        if transaction.get_type() != "C": 
+            print(f"Transaction  {transaction.get_ts()}  is waiting for lock on object  {transaction.get_obj()}")      
         
 
     def check_if_waiting(self, transaction):
@@ -105,11 +108,13 @@ class simple_locking():
     def execute(self, transaction):
         if not self.check_if_waiting(transaction):
             if self.check_have_lock(transaction):
+                print(f"Operation  {transaction}  executed")
                 self.results.append(transaction)
                 self.remove_from_wt(transaction)
                 return
             else:
                 if (self.try_get_lock(transaction)):
+                    print(f"Operation  {transaction}  executed")
                     self.results.append(transaction)
                     self.remove_from_wt(transaction)
                     return
@@ -128,6 +133,7 @@ class simple_locking():
             if self.lock_table[lock] == ts:
                 self.lock_table[lock] = None
                 lock_released.append(lock)
+                print(f"Lock released on object {lock} by transaction {ts}")
                 self.results.append(f"UL{ts}({lock})")
                 
         for ts in self.waiting_table:
@@ -143,6 +149,7 @@ class simple_locking():
 
     def commit(self, transaction):
         if not self.check_if_waiting(transaction):
+            print(f"Commit transaction {transaction.get_ts()}")
             self.results.append(transaction)
             self.unlock(transaction.get_ts())
             self.remove_from_wt(transaction)
@@ -151,6 +158,7 @@ class simple_locking():
 
 
     def abort(self, transaction):
+        print(f"Abort transaction {transaction.get_ts()}")
         self.results.append(f"A{transaction.get_ts()}")
         self.unlock(transaction.get_ts())
         max = 0
@@ -180,6 +188,7 @@ class simple_locking():
 
 
     def print_results(self):
+        print()
         print("Schedule result: ")
         for r in self.results:
             print(r, end="; ")
