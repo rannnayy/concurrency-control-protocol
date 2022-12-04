@@ -89,7 +89,7 @@ class simple_locking():
             self.waiting_table[transaction.get_ts()] = transaction.get_obj()
         if (transaction not in self.waiting_queue):
             self.waiting_queue.append(transaction) 
-        if transaction.get_type() != "C": 
+        if transaction.get_type() != "C" and self.waiting_table[transaction.get_ts()] == transaction.get_obj(): 
             print(f"Transaction  {transaction.get_ts()}  is waiting for lock on object  {transaction.get_obj()}")      
         
 
