@@ -65,16 +65,17 @@ class mvcc():
                 # Search for suitable version to be read
                 for i in range (len(self.Q)-1, -1, -1):
                     if self.Q[i].var == var:
-                        if self.Q[i].RTS <= self.T[no-1].ts:
-                            self.Q[i].readOp(self.T[no-1].ts)
-                            self.T[no-1].addT(self.transactions[count])
-                            self.T[no-1].res.append(self.Q[i].k)
-                            print(self.transactions[count], "Reads", self.Q[i])
-                        else:
-                            self.T[no-1].addT(self.transactions[count])
-                            self.T[no-1].res.append(self.Q[i].k)
-                            print(self.transactions[count], "Reads", self.Q[i])
-                        break
+                        if self.Q[i].WTS <= self.T[no-1].ts:
+                            if self.Q[i].RTS <= self.T[no-1].ts:
+                                self.Q[i].readOp(self.T[no-1].ts)
+                                self.T[no-1].addT(self.transactions[count])
+                                self.T[no-1].res.append(self.Q[i].k)
+                                print(self.transactions[count], "Reads", self.Q[i])
+                            else:
+                                self.T[no-1].addT(self.transactions[count])
+                                self.T[no-1].res.append(self.Q[i].k)
+                                print(self.transactions[count], "Reads", self.Q[i])
+                            break
             elif type == "W":
                 # Search for the latest version of var
                 for i in range (len(self.Q)-1, -1, -1):
