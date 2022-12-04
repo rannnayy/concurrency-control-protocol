@@ -101,11 +101,12 @@ class mvcc():
                             print(self.transactions[count], "New version.", self.Q[-1])
                             break
             elif type == "A":
+                temp_start_T = self.search_c(self.T[no-1].trans)
                 temp_len_T = len(self.T[no-1].trans)
-                # print("temp_len_T", temp_len_T)
+                # print(temp_start_T, temp_len_T)
                 temp_cascade = []
-                for j in range(temp_len_T):
-                    self.transactions.insert(count + 1 + j, self.T[no-1].trans[j])
+                for j in range(temp_start_T, temp_len_T):
+                    self.transactions.insert(count + 1 + j - temp_start_T, self.T[no-1].trans[j])
                     # Check cascading rollback
                     # Search for every Q which has k = prev_ts (means that version was written by prev_ts)
                     for t in self.T:
@@ -118,7 +119,7 @@ class mvcc():
                 cnt_plus = 0
                 # insert cascading transactions
                 for c in temp_cascade:
-                    self.transactions.insert(count + 1 + temp_len_T + cnt_plus, c)
+                    self.transactions.insert(count + 1 + (temp_len_T - temp_start_T) + cnt_plus, c)
                     cnt_plus += 1
                 print(self.transactions[count])
                 self.T[no-1].addT(self.transactions[count])
@@ -127,3 +128,12 @@ class mvcc():
                 self.T[no-1].addT(self.transactions[count])
             count += 1
     
+    def search_c(self, trans):
+        idx = len(trans) - 1
+        # print("awal", idx)
+        while idx >= 0:
+            # print(idx)
+            if trans[idx].get_type() == "C":
+                return idx + 1
+            idx -= 1
+        return idx + 1
