@@ -169,10 +169,12 @@ class simple_locking():
         self.timestamp[transaction.get_ts()] = max + 1
 
         self.unlock(transaction.get_ts())
+        queue = []
         for item in self.each_transaction[transaction.get_ts()]:
             if item == transaction:
                 break
-            self.queue.insert(0, item)
+            queue.append(item)
+        self.queue = queue + self.queue
 
 
     def start(self):
