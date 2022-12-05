@@ -132,6 +132,7 @@ class occ():
                 self.print_result(temp_trans)
             else:
                 self.T[index].setValidate(self.latest_ts + 1)
+                self.latest_ts += 1
     
     def validation_test(self, i, ts_i):
         # i should be in 0..num_T-1
